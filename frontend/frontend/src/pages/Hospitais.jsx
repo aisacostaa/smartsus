@@ -28,14 +28,8 @@ export default function Hospitais() {
   const [selecionado, setSelecionado] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const carregar = () => {
-    hospitaisAPI.listar().then(r => { setHospitais(r.data); setLoading(false); });
-  };
-
   useEffect(() => {
-    carregar();
-    const t = setInterval(carregar, 5000);
-    return () => clearInterval(t);
+    hospitaisAPI.listar().then(r => { setHospitais(r.data); setLoading(false); });
   }, []);
 
   const pct = (h) => Math.round((h.agendados_hoje / h.capacidade_dia) * 100);
@@ -68,9 +62,9 @@ export default function Hospitais() {
               </div>
               <div className="mt-3">
                 <div className="flex justify-between text-xs mb-1">
-                  <span className="text-slate-400">Pacientes agendados</span>
+                  <span className="text-slate-400">Vagas hoje</span>
                   <span className={h.disponivel ? "text-green-400" : "text-red-400"}>
-                    {h.agendados_hoje}/{h.capacidade_dia}
+                    {h.vagas_hoje}/{h.capacidade_dia}
                   </span>
                 </div>
                 <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
@@ -100,7 +94,7 @@ export default function Hospitais() {
                       <p style={{ fontWeight: 700, marginBottom: 4 }}>{h.nome}</p>
                       <p style={{ color: "#94a3b8", fontSize: 12 }}>{h.endereco}</p>
                       <p style={{ color: h.disponivel ? "#22c55e" : "#ef4444", fontSize: 12, marginTop: 6, fontWeight: 600 }}>
-                        {h.agendados_hoje} pacientes agendados hoje
+                        {h.vagas_hoje} vagas disponíveis hoje
                       </p>
                     </div>
                   </Popup>
@@ -126,7 +120,7 @@ export default function Hospitais() {
             {[
               { label: "Endereço", value: selecionado.endereco },
               { label: "Bairro", value: selecionado.bairro },
-              { label: "Pacientes Agendados", value: `${selecionado.agendados_hoje} / ${selecionado.capacidade_dia}` },
+              { label: "Vagas Hoje", value: `${selecionado.vagas_hoje} / ${selecionado.capacidade_dia}` },
               { label: "Status", value: selecionado.disponivel ? "Disponível" : "Lotado" },
             ].map(item => (
               <div key={item.label}>

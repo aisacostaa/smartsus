@@ -1,9 +1,5 @@
-# ============================================================
-# SmartSus — Router: Pacientes
-# ============================================================
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 from datetime import date
 from app.database import get_db
 from app.models.models import Paciente, Hospital, Alocacao
@@ -14,7 +10,6 @@ from typing import Optional
 
 router = APIRouter()
 
-# --- Schemas ---
 class PacienteCreate(BaseModel):
     nome: str
     cpf: str
@@ -35,8 +30,8 @@ class PacienteUpdate(BaseModel):
     gravidade: Optional[str] = None
     status: Optional[str] = None
     tipo_cirurgia: Optional[str] = None
+    hospital_id: Optional[int] = None
 
-# --- Helpers ---
 def _serializar(p: Paciente) -> dict:
     return {
         "id": p.id,
@@ -57,6 +52,7 @@ def _serializar(p: Paciente) -> dict:
         "data_entrada": p.data_entrada.isoformat(),
         "status": p.status,
         "hospital_id": p.hospital_id,
+        "hospital_atribuido": p.hospital.nome if p.hospital else None,
         "data_cirurgia": p.data_cirurgia.isoformat() if p.data_cirurgia else None,
         "score": float(p.score),
         "dias_na_fila": dias_na_fila(p.data_entrada),
@@ -67,34 +63,23 @@ def _alocar_hospital(paciente: Paciente, db: Session):
     hospitais = db.query(Hospital).filter(Hospital.ativo == 1).all()
     if not paciente.lat or not paciente.lng:
         return
-    hoje = date.today()
     melhor = None
     menor_dist = float("inf")
     for h in hospitais:
-        aloc = db.query(Alocacao).filter(
-            Alocacao.hospital_id == h.id,
-            Alocacao.data_cirurgia == hoje
-        ).first()
-        agendados = aloc.total_agendado if aloc else 0
-        if agendados >= h.capacidade_dia:
+        total = db.query(Paciente).filter(
+            Paciente.hospital_id == h.id,
+            Paciente.status.in_(["aguardando", "agendado"])
+        ).count()
+        if total >= h.capacidade_dia:
             continue
-        dist = distancia_simples(paciente.lat, paciente.lng, float(h.lat), float(h.lng))
+        dist = distancia_simples(float(paciente.lat), float(paciente.lng), float(h.lat), float(h.lng))
         if dist["distancia_km"] < menor_dist:
             menor_dist = dist["distancia_km"]
             melhor = h
     if melhor:
         paciente.hospital_id = melhor.id
-        paciente.data_cirurgia = hoje
-        aloc = db.query(Alocacao).filter(
-            Alocacao.hospital_id == melhor.id,
-            Alocacao.data_cirurgia == hoje
-        ).first()
-        if aloc:
-            aloc.total_agendado += 1
-        else:
-            db.add(Alocacao(hospital_id=melhor.id, data_cirurgia=hoje, total_agendado=1))
+        paciente.data_cirurgia = date.today()
 
-# --- Endpoints ---
 @router.post("", status_code=201)
 def criar_paciente(dados: PacienteCreate, db: Session = Depends(get_db)):
     existente = db.query(Paciente).filter(Paciente.cpf == dados.cpf).first()
@@ -129,12 +114,17 @@ def atualizar_paciente(paciente_id: int, dados: PacienteUpdate, db: Session = De
     p = db.query(Paciente).filter(Paciente.id == paciente_id).first()
     if not p:
         raise HTTPException(404, "Paciente não encontrado")
+
     if dados.gravidade:
         p.gravidade = dados.gravidade
     if dados.status:
         p.status = dados.status
     if dados.tipo_cirurgia:
         p.tipo_cirurgia = dados.tipo_cirurgia
+    if dados.hospital_id is not None:
+        p.hospital_id = dados.hospital_id
+        p.data_cirurgia = date.today()
+
     p.score = calcular_score_total(p.gravidade, p.data_nascimento, p.data_entrada, p.tipo_cirurgia)
     db.commit()
     db.refresh(p)

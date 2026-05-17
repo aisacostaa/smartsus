@@ -1,55 +1,42 @@
 import { useState } from "react";
-import { simulacaoAPI, pacientesAPI, filaAPI } from "../services/api";
+import { simulacaoAPI, pacientesAPI } from "../services/api";
 import { FlaskConical, Play, Trash2, Users, Clock, AlertTriangle, Activity, X, ChevronDown, ChevronUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Cell, ResponsiveContainer } from "recharts";
 
 const CORES = { P1: "#ef4444", P2: "#f97316", P3: "#eab308", P4: "#22c55e", P5: "#3b82f6" };
 const LABELS = { P1: "Imediato", P2: "Muito Urgente", P3: "Urgente", P4: "Pouco Urgente", P5: "Não Urgente" };
 
-const SCORE_MANCHESTER = { P1: 100, P2: 80, P3: 60, P4: 40, P5: 20 };
-
-function calcDecomp(p) {
-  const M = SCORE_MANCHESTER[p.gravidade] * 0.45;
-  const I = Math.min(Math.max((p.idade - 40) * 0.5, 0), 20) * 0.20;
-  const D = (30 * Math.min(p.dias_na_fila / 180, 1)) * 0.25;
-  const C = Math.max((p.score || 0) - M - I - D, 0);
-  return { M: M.toFixed(2), I: I.toFixed(2), D: D.toFixed(2), C: C.toFixed(2) };
-}
-
 function Modal({ paciente, onClose }) {
   if (!paciente) return null;
-  const d = calcDecomp(paciente);
-  const total = paciente.score || 0;
+  const scoreM = { P1: 100, P2: 80, P3: 60, P4: 40, P5: 20 }[paciente.gravidade] * 0.45;
+  const scoreI = Math.min(Math.max((paciente.idade - 40) * 0.5, 0), 20) * 0.20;
+  const scoreD = (30 * Math.min(paciente.dias_na_fila / 180, 1)) * 0.25;
+  const scoreC = paciente.score - scoreM - scoreI - scoreD;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.75)" }} onClick={onClose}>
-      <div className="card p-6 w-full max-w-lg fade-in max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      style={{ background: "rgba(0,0,0,0.7)" }} onClick={onClose}>
+      <div className="card p-6 w-full max-w-lg fade-in" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-white font-bold text-lg">{paciente.nome}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white"><X size={20} /></button>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
         </div>
 
-        {/* Dados pessoais completos */}
-        <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider mb-3">Dados do Paciente</p>
+        {/* Dados pessoais */}
         <div className="grid grid-cols-2 gap-3 mb-6">
           {[
-            { label: "Idade", value: paciente.idade ? `${paciente.idade} anos` : "—" },
+            { label: "Idade", value: `${paciente.idade} anos` },
             { label: "Gênero", value: paciente.genero === "M" ? "Masculino" : paciente.genero === "F" ? "Feminino" : "Outro" },
-            { label: "Data de Nascimento", value: paciente.data_nascimento || "—" },
-            { label: "CPF", value: paciente.cpf ? `***${paciente.cpf.slice(-3)}` : "—" },
-            { label: "Telefone", value: paciente.telefone || "—" },
-            { label: "Bairro", value: paciente.bairro || "—" },
-            { label: "Endereço", value: paciente.endereco || "—" },
-            { label: "Cidade", value: paciente.cidade || "São Paulo" },
             { label: "Cirurgia", value: paciente.tipo_cirurgia },
-            { label: "Entrada na Fila", value: paciente.data_entrada || "—" },
+            { label: "Bairro", value: paciente.bairro },
             { label: "Dias na Fila", value: `${paciente.dias_na_fila} dias` },
             { label: "Hospital", value: paciente.hospital_atribuido || "—" },
           ].map(item => (
             <div key={item.label} className="bg-slate-800/50 rounded-xl p-3">
               <p className="text-slate-400 text-xs">{item.label}</p>
-              <p className="text-white font-medium text-sm mt-0.5 break-words">{item.value}</p>
+              <p className="text-white font-medium text-sm mt-0.5">{item.value}</p>
             </div>
           ))}
         </div>
@@ -64,32 +51,28 @@ function Modal({ paciente, onClose }) {
         </div>
 
         {/* Decomposição do score */}
-        <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider mb-3">
-          Por que score {total.toFixed(1)}?
-        </p>
-        <div className="bg-slate-900/60 rounded-xl p-4 mb-4 font-mono text-xs text-slate-400">
-          S = α·M + β·I + γ·D + δ·C = {d.M} + {d.I} + {d.D} + {d.C} = <span className="text-white font-bold">{total.toFixed(2)}</span>
-        </div>
-        <div className="space-y-3">
-          {[
-            { label: "α×Manchester — Gravidade do caso", valor: d.M, desc: `${paciente.gravidade} = ${SCORE_MANCHESTER[paciente.gravidade]} pts × 0.45`, cor: "#ef4444", pct: (parseFloat(d.M) / total) * 100 },
-            { label: "β×Idade — Prioridade por idade", valor: d.I, desc: paciente.idade ? `${paciente.idade} anos × fator etário × 0.20` : "idade não calculada", cor: "#a78bfa", pct: (parseFloat(d.I) / total) * 100 },
-            { label: "γ×Tempo — Dias aguardando", valor: d.D, desc: `${paciente.dias_na_fila} dias na fila × 0.25`, cor: "#f97316", pct: (parseFloat(d.D) / total) * 100 },
-            { label: "δ×Cirurgia — Tipo de cirurgia", valor: d.C, desc: `${paciente.tipo_cirurgia} × 0.10`, cor: "#22c55e", pct: (parseFloat(d.C) / total) * 100 },
-          ].map(item => (
-            <div key={item.label}>
-              <div className="flex justify-between text-xs mb-1">
-                <div>
-                  <span className="text-slate-300">{item.label}</span>
-                  <p className="text-slate-500 text-xs">{item.desc}</p>
+        <div>
+          <p className="text-blue-400 text-xs font-semibold uppercase tracking-wider mb-3">
+            Por que este score? — Total: {paciente.score?.toFixed(1) ?? "—"}
+          </p>
+          <div className="space-y-2">
+            {[
+              { label: "α × Manchester (gravidade)", valor: scoreM.toFixed(2), pct: (scoreM / paciente.score) * 100, cor: "#ef4444" },
+              { label: "β × Idade", valor: scoreI.toFixed(2), pct: (scoreI / paciente.score) * 100, cor: "#a78bfa" },
+              { label: "γ × Tempo na fila", valor: scoreD.toFixed(2), pct: (scoreD / paciente.score) * 100, cor: "#f97316" },
+              { label: "δ × Tipo de cirurgia", valor: Math.max(scoreC, 0).toFixed(2), pct: (Math.max(scoreC, 0) / paciente.score) * 100, cor: "#22c55e" },
+            ].map(item => (
+              <div key={item.label}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-400">{item.label}</span>
+                  <span className="text-white font-medium">+{item.valor}</span>
                 </div>
-                <span className="text-white font-bold ml-4">+{item.valor}</span>
+                <div className="w-full h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${Math.max(item.pct, 0)}%`, background: item.cor }} />
+                </div>
               </div>
-              <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full rounded-full" style={{ width: `${Math.max(item.pct, 0)}%`, background: item.cor }} />
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -112,11 +95,10 @@ export default function Simulacao() {
     try {
       const res = await simulacaoAPI.simular(quantidade);
       setResultado(res.data);
-      // Buscar dados COMPLETOS dos pacientes
-      const pacRes = await pacientesAPI.listar("aguardando");
-      setPacientes(pacRes.data);
+      // Buscar pacientes da fila após simulação
+      const filaRes = await pacientesAPI.listar("aguardando");
+      setPacientes(filaRes.data.slice(0, quantidade));
       setStatus("success");
-      setMostrarTabela(true);
     } catch {
       setStatus("error");
     }
@@ -145,6 +127,7 @@ export default function Simulacao() {
         <p className="text-slate-400 text-sm mt-1">Gere pacientes fictícios e veja o algoritmo de priorização em ação</p>
       </div>
 
+      {/* Painel de controle */}
       <div className="card p-8">
         <h3 className="text-blue-400 font-semibold text-sm uppercase tracking-wider mb-6">Configurar Simulação</h3>
         <div className="flex flex-col md:flex-row items-start md:items-end gap-6">
@@ -222,7 +205,7 @@ export default function Simulacao() {
 
           <div className="card p-6">
             <h4 className="text-white font-semibold mb-6">Distribuição por Gravidade (Escala Manchester)</h4>
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={220}>
               <BarChart data={gravidadeData} barSize={40}>
                 <XAxis dataKey="name" tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill: "#94a3b8", fontSize: 12 }} axisLine={false} tickLine={false} />
@@ -234,55 +217,50 @@ export default function Simulacao() {
             </ResponsiveContainer>
           </div>
 
-          {/* Tabela pacientes completa */}
+          {/* Tabela de pacientes */}
           {pacientes.length > 0 && (
             <div className="card overflow-hidden">
               <button onClick={() => setMostrarTabela(!mostrarTabela)}
-                className="w-full flex items-center justify-between p-5 text-left hover:bg-blue-900/10 transition-all">
+                className="w-full flex items-center justify-between p-6 text-left hover:bg-blue-900/10 transition-all">
                 <div className="flex items-center gap-3">
                   <Users size={18} className="text-blue-400" />
-                  <span className="text-white font-semibold">Pacientes na Fila Otimizada</span>
+                  <span className="text-white font-semibold">Pacientes Gerados — Fila Otimizada</span>
                   <span className="px-2 py-0.5 rounded-full bg-blue-600/30 text-blue-300 text-xs">{pacientes.length}</span>
                 </div>
                 {mostrarTabela ? <ChevronUp size={18} className="text-slate-400" /> : <ChevronDown size={18} className="text-slate-400" />}
               </button>
 
               {mostrarTabela && (
-                <div className="border-t border-blue-900/30 overflow-x-auto fade-in">
+                <div className="overflow-x-auto border-t border-blue-900/30">
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-blue-900/30">
-                        {["Pos.", "Nome", "Idade", "Bairro", "Gravidade", "Cirurgia", "Dias na Fila", "Score", "Hospital", ""].map(h => (
-                          <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                        {["Pos.", "Paciente", "Idade", "Gravidade", "Cirurgia", "Score", "Dias na Fila", "Hospital", ""].map(h => (
+                          <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {pacientes.map((p, i) => (
-                        <tr key={p.id} className={`border-b border-blue-900/10 hover:bg-blue-900/10 transition-all ${p.critico ? "bg-red-900/10" : ""}`}>
+                        <tr key={p.id} className="border-b border-blue-900/10 hover:bg-blue-900/10 transition-all">
                           <td className="px-4 py-3 text-blue-400 font-bold text-sm">#{i + 1}</td>
                           <td className="px-4 py-3">
-                            <p className="text-white text-sm font-medium whitespace-nowrap">{p.nome}</p>
+                            <p className="text-white text-sm font-medium">{p.nome}</p>
                             <p className="text-slate-500 text-xs">ID #{p.id}</p>
                           </td>
-                          <td className="px-4 py-3 text-slate-300 text-sm whitespace-nowrap">{p.idade ?? "—"} anos</td>
-                          <td className="px-4 py-3 text-slate-400 text-sm whitespace-nowrap">{p.bairro || "—"}</td>
+                          <td className="px-4 py-3 text-slate-300 text-sm">{p.idade} anos</td>
                           <td className="px-4 py-3">
-                            <span className="px-2 py-1 rounded-full text-xs font-bold text-white whitespace-nowrap"
+                            <span className="px-2 py-1 rounded-full text-xs font-bold text-white"
                               style={{ background: CORES[p.gravidade] }}>
                               {p.gravidade} — {LABELS[p.gravidade]}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-slate-300 text-sm whitespace-nowrap">{p.tipo_cirurgia}</td>
-                          <td className="px-4 py-3">
-                            <span className={`text-sm font-medium whitespace-nowrap ${p.critico ? "text-red-400" : "text-slate-300"}`}>
-                              {p.dias_na_fila}d {p.critico && "⚠️"}
-                            </span>
-                          </td>
+                          <td className="px-4 py-3 text-slate-300 text-sm">{p.tipo_cirurgia}</td>
                           <td className="px-4 py-3 text-white font-bold text-sm">{p.score?.toFixed(1)}</td>
-                          <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">{p.hospital_id ? `H#${p.hospital_id}` : "—"}</td>
+                          <td className="px-4 py-3 text-slate-300 text-sm">{p.dias_na_fila}d</td>
+                          <td className="px-4 py-3 text-slate-400 text-xs">{p.hospital_id ? `Hospital #${p.hospital_id}` : "—"}</td>
                           <td className="px-4 py-3">
-                            <button onClick={() => setModalPaciente(p)}
+                            <button onClick={() => setModalPaciente({ ...p, hospital_atribuido: p.hospital_id ? `Hospital #${p.hospital_id}` : "—" })}
                               className="px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 text-xs font-medium transition-all border border-blue-600/30 whitespace-nowrap">
                               Detalhes
                             </button>
@@ -300,12 +278,12 @@ export default function Simulacao() {
           <div className="card p-6">
             <h4 className="text-white font-semibold mb-4">Fórmula de Priorização Aplicada</h4>
             <div className="bg-slate-900/60 rounded-xl p-4 font-mono text-sm">
-              <p className="text-blue-300">S = α·M + β·I + γ·D + δ·C</p>
-              <div className="mt-3 space-y-1 text-xs text-slate-400">
-                <p><span className="text-red-400">α=0.45</span> · M = Manchester (P1=100, P2=80, P3=60, P4=40, P5=20)</p>
-                <p><span className="text-purple-400">β=0.20</span> · I = Idade (bônus progressivo acima de 40 anos)</p>
-                <p><span className="text-orange-400">γ=0.25</span> · D = Tempo na fila (exponencial após 120 dias)</p>
-                <p><span className="text-green-400">δ=0.10</span> · C = Tipo de cirurgia (urgência clínica)</p>
+              <p className="text-blue-300">S<sub>i</sub> = α·M<sub>i</sub> + β·I<sub>i</sub> + γ·D<sub>i</sub> + δ·C<sub>i</sub></p>
+              <div className="mt-4 space-y-1 text-xs text-slate-400">
+                <p><span className="text-blue-400">α = 0.45</span> · M = Score Manchester (P1=100 → P5=20)</p>
+                <p><span className="text-blue-400">β = 0.20</span> · I = Score Idade (bônus para idosos)</p>
+                <p><span className="text-blue-400">γ = 0.25</span> · D = Score Tempo na fila (exponencial após 120 dias)</p>
+                <p><span className="text-blue-400">δ = 0.10</span> · C = Score Tipo de Cirurgia (urgência)</p>
               </div>
             </div>
           </div>

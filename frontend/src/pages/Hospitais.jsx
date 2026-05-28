@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Circle } from "react-leaflet";
 import L from "leaflet";
-import { hospitaisAPI } from "../services/api";
-import { Hospital, MapPin, Users, CheckCircle, XCircle } from "lucide-react";
+import { Hospital, CheckCircle, XCircle } from "lucide-react";
+import { useApp } from "../context/AppContext";
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -24,19 +24,8 @@ function criarIcone(disponivel) {
 }
 
 export default function Hospitais() {
-  const [hospitais, setHospitais] = useState([]);
+  const { hospitais, loading } = useApp();
   const [selecionado, setSelecionado] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const carregar = () => {
-    hospitaisAPI.listar().then(r => { setHospitais(r.data); setLoading(false); });
-  };
-
-  useEffect(() => {
-    carregar();
-    const t = setInterval(carregar, 5000);
-    return () => clearInterval(t);
-  }, []);
 
   const pct = (h) => Math.round((h.agendados_hoje / h.capacidade_dia) * 100);
 

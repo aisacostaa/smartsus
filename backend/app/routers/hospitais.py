@@ -6,10 +6,13 @@ from app.models.models import Hospital, Paciente
 router = APIRouter()
 
 def _contar_pacientes(hospital_id: int, db: Session) -> int:
-    """Conta pacientes aguardando ou agendados neste hospital."""
+    """Conta pacientes agendados para HOJE neste hospital."""
+    from datetime import date
+    hoje = date.today()
     return db.query(Paciente).filter(
         Paciente.hospital_id == hospital_id,
-        Paciente.status.in_(["aguardando", "agendado"])
+        Paciente.status == "agendado",
+        Paciente.data_cirurgia == hoje
     ).count()
 
 def _serializar(h: Hospital, ocupados: int = 0) -> dict:

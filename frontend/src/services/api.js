@@ -34,3 +34,19 @@ export const simulacaoAPI = {
 };
 
 export default api;
+
+
+export const roteamentoAPI = {
+  calcular: (pacienteId, hospitalId) =>
+    api.get(`/api/roteamento/paciente/${pacienteId}/hospital/${hospitalId}`),
+};
+
+export const agendamentoAPI = {
+  disponibilidade: (hospitalId) => api.get(`/api/agendamento/disponibilidade/${hospitalId}`),
+  agendar: (dados) => api.post("/api/agendamento", dados),
+  realizar: (pacienteId) => api.put(`/api/agendamento/realizar/${pacienteId}`),
+};
+
+export const otimizacaoAPI = {
+  otimizarFila: () => api.post("/api/agendamento/otimizar-fila"),
+};

@@ -30,9 +30,10 @@ async def calcular_rota(origem_lat: float, origem_lng: float,
             if resp.status_code == 200:
                 data = resp.json()
                 segmento = data["routes"][0]["summary"]
+                duracao_real = segmento["duration"] / 60 * 1.8  # fator trânsito SP
                 return {
                     "distancia_km": round(segmento["distance"] / 1000, 2),
-                    "duracao_min":  round(segmento["duration"] / 60, 1),
+                    "duracao_min":  round(duracao_real, 1),
                     "fonte": "openrouteservice"
                 }
     except Exception:

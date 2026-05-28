@@ -18,7 +18,7 @@ class SimulacaoRequest(BaseModel):
 
 @router.post("")
 def simular(req: SimulacaoRequest, db: Session = Depends(get_db)):
-    quantidade = min(req.quantidade, 200)
+    quantidade = min(req.quantidade, 500)
     criados = 0
     for i in range(quantidade):
         dados = gerar_paciente_ficticio(i)
@@ -42,8 +42,8 @@ def simular(req: SimulacaoRequest, db: Session = Depends(get_db)):
         criados += 1
     db.commit()
 
-    # Métricas pós-simulação
-    todos = db.query(Paciente).filter(Paciente.status == "aguardando").all()
+    # Métricas pós-simulação — ordenado por data de entrada (FIFO)
+    todos = db.query(Paciente).filter(Paciente.status == "aguardando").order_by(Paciente.data_entrada.asc()).all()
     criticos = sum(1 for p in todos if is_critico(p.data_entrada))
     media = sum(dias_na_fila(p.data_entrada) for p in todos) / len(todos) if todos else 0
 

@@ -181,21 +181,21 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Linha 3 — Ocupação hospitais (card branco) */}
-      <div className="card-white p-6 shadow-xl">
+      {/* ALTERAÇÃO SOLICITADA AQUI: Linha 3 — Ocupação hospitais integrada ao padrão Glassmorphism escuro */}
+      <div className="card p-6">
         <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div>
-            <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2">
-              <Hospital size={18} className="text-blue-600" />
+            <h3 className="text-white font-bold text-base flex items-center gap-2">
+              <Hospital size={16} className="text-blue-400" />
               Ocupação dos Hospitais Hoje
             </h3>
-            <p className="text-xs mt-0.5 text-slate-500">{totalDisp} disponíveis · {totalLotados} lotados</p>
+            <p className="text-xs mt-0.5 text-slate-400">{totalDisp} disponíveis · {totalLotados} lotados</p>
           </div>
           <div className="flex items-center gap-4">
             {[{ cor: "#10b981", label: "Disponível" }, { cor: "#f59e0b", label: "Parcial" }, { cor: "#ef4444", label: "Lotado" }].map(l => (
               <div key={l.label} className="flex items-center gap-1.5">
                 <div className="w-3 h-3 rounded-full" style={{ background: l.cor }} />
-                <span className="text-xs text-slate-500 font-medium">{l.label}</span>
+                <span className="text-xs text-slate-400 font-medium">{l.label}</span>
               </div>
             ))}
           </div>
@@ -210,8 +210,14 @@ export default function Dashboard() {
                   style={{ background: cor + "18", border: `1px solid ${cor}44` }}>
                   <Hospital size={13} style={{ color: cor }} />
                 </div>
-                <p className="text-slate-700 text-xs font-medium w-40 truncate flex-shrink-0">{h.nome.replace("Hospital ", "")}</p>
-                <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "#e2e8f0" }}>
+                
+                {/* 1. Removida a remoção do prefixo "Hospital" */}
+                {/* 2. Modificada a cor para text-slate-300 */}
+                {/* 3. Ajustada a largura para w-60 para que o texto longo caiba confortavelmente */}
+                <p className="text-slate-300 text-xs font-medium w-60 truncate flex-shrink-0">{h.nome}</p>
+                
+                {/* 4. Ajustada a cor de fundo da trilha do progress bar para combinar com o tema escuro */}
+                <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.08)" }}>
                   <div className="h-full rounded-full transition-all duration-700"
                     style={{ width: `${Math.min(pct, 100)}%`, background: `linear-gradient(90deg, ${cor}cc, ${cor})` }} />
                 </div>

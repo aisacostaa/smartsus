@@ -85,7 +85,8 @@ export default function Agenda() {
               <div className={`w-7 h-7 rounded-lg flex items-center justify-center mb-2 ${h.disponivel ? "bg-green-500/20" : "bg-red-500/20"}`}>
                 <Hospital size={14} className={h.disponivel ? "text-green-400" : "text-red-400"} />
               </div>
-              <p className="text-white text-xs font-medium leading-tight truncate">{h.nome.replace("Hospital ", "")}</p>
+              {/* REMOVIDO .replace AQUI PARA EXIBIR "HOSPITAL" NOS BOTÕES */}
+              <p className="text-white text-xs font-medium leading-tight truncate">{h.nome}</p>
               <p className="text-slate-400 text-xs mt-1">{totalH} agendados</p>
             </button>
           );
